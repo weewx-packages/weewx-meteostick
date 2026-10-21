@@ -29,11 +29,11 @@ Installation
 
 This repository continues `matthewwall/weewx-meteostick` with its original history.
 The driver is GPL-3.0-or-later; the installer is GPL-3.0-only. See `license`.
-Version 0.68.0 accepts WeeWX 5.2 byte-based CRC input, tolerates reset noise,
+Version 0.68.1 accepts WeeWX 5.2 byte-based CRC input, tolerates reset noise,
 flushes an incomplete serial command before reset, and resets/reconfigures the
 receiver after an empty read. Retries remain bounded by `max_tries`.
 
 Install using `weectl extension install` with
-`https://github.com/weewx-packages/weewx-meteostick/archive/refs/tags/v0.68.0.zip`.
+`https://github.com/weewx-packages/weewx-meteostick/archive/refs/tags/v0.68.1.zip`.
 Run `python -m pytest -q tests` for CRC, reset, recovery, and logging tests.
 Physical RF reception after a reset remains to verify on a Meteostick.
