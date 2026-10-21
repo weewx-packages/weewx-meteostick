@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Modified 2026-10-22 by weewx-packages.
 # -*- coding: utf-8 -*-
 # Meteostick driver for weewx
 #
@@ -84,7 +85,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 DRIVER_NAME = 'Meteostick'
-DRIVER_VERSION = '0.67'
+DRIVER_VERSION = '0.68.0'
 
 DEBUG_SERIAL = 0
 DEBUG_RAIN = 0
@@ -527,7 +528,7 @@ class Meteostick(object):
             self.serial_port = None
 
     def get_readings(self):
-        buf = self.serial_port.readline().decode('utf-8')
+        buf = self.serial_port.readline().decode('ascii', errors='ignore')
         if len(buf) > 0:
             dbg_serial(2, "station said: %s" %
                        ' '.join(["%0.2X" % ord(c) for c in buf]))
@@ -536,7 +537,13 @@ class Meteostick(object):
     def get_readings_with_retry(self, max_tries=5, retry_wait=10):
         for ntries in range(0, max_tries):
             try:
-                return self.get_readings()
+                readings = self.get_readings()
+                if readings:
+                    return readings
+                loginf("No data from meteostick; resetting receiver")
+                self.reset()
+                self.configure()
+                time.sleep(retry_wait)
             except serial.serialutil.SerialException as e:
                 loginf("Failed attempt %d of %d to get readings: %s" %
                        (ntries + 1, max_tries, e))
@@ -554,7 +561,9 @@ class Meteostick(object):
         self.serial_port.flushInput()
 
         # Send a reset command
-        self.serial_port.write(b'r\n')
+        self.serial_port.reset_output_buffer()
+        self.serial_port.write(b'\nr\n')
+        self.serial_port.flush()
         # Wait until we see the ? character
         start_ts = time.time()
         ready = False
@@ -562,7 +571,7 @@ class Meteostick(object):
         while not ready:
             time.sleep(0.1)
             while self.serial_port.inWaiting() > 0:
-                c = self.serial_port.read(1).decode('utf-8')
+                c = self.serial_port.read(1).decode('ascii', errors='ignore')
                 if c == '?':
                     ready = True
                 elif c in string.printable:
@@ -610,10 +619,10 @@ class Meteostick(object):
         # From now on the device will produce lines with received data
 
     def send_command(self, cmd):
-        cmd2 = (cmd + "\r").encode('utf-8')
+        cmd2 = (cmd + "\r").encode('ascii')
         self.serial_port.write(cmd2)
         time.sleep(0.2)
-        response = self.serial_port.read(self.serial_port.inWaiting()).decode('utf-8')
+        response = self.serial_port.read(self.serial_port.inWaiting()).decode('ascii', errors='ignore')
         dbg_serial(1, "cmd: '%s': %s" % (cmd, response))
         self.serial_port.flushInput()
 
@@ -683,7 +692,7 @@ class Meteostick(object):
                 # Calculate crc with bytes 0-7, result must be equal to 0
                 chksum = 0
                 for i in range(0, 8):
-                    raw_msg_crc[i] = chr(int(parts[i + 2], 16))
+                    raw_msg_crc[i] = int(parts[i + 2], 16)
                 Meteostick._check_crc(raw_msg_crc, chksum)
             else:
                 # message received via repeater
@@ -691,9 +700,9 @@ class Meteostick(object):
                 # to bytes 6-7
                 chksum = (pkt[6] << 8) + pkt[7]
                 for i in range(0, 6):
-                    raw_msg_crc[i] = chr(int(parts[i + 2], 16))
+                    raw_msg_crc[i] = int(parts[i + 2], 16)
                 for i in range(6, 8):
-                    raw_msg_crc[i] = chr(int(parts[i + 4], 16))
+                    raw_msg_crc[i] = int(parts[i + 4], 16)
                 Meteostick._check_crc(raw_msg_crc, chksum)
 
             data['channel'] = (pkt[0] & 0x7) + 1
