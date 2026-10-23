@@ -1,39 +1,74 @@
-# weewx-meteostick
+# Meteostick for WeeWX
 
-Read data from a meteostick via serial connection.
+Receive Davis wireless weather transmissions with a Meteostick connected by
+serial/USB. The driver configures the receiver's raw format and decodes ISS,
+separate anemometer, leaf/soil and up to two extra temperature/humidity stations.
+Frequency plans are `EU`, `US` and `AU`; select the plan for your hardware.
 
+This independent continuation preserves
+[matthewwall/weewx-meteostick](https://github.com/matthewwall/weewx-meteostick)
+history. Version 0.68.1 fixes byte-based CRC handling and bounded recovery after
+empty serial reads. Physical reception after a reset still needs device checks.
 
-Installation
+## Install
 
-0) Install weewx, select Simulator as the weather station
+The catalog release requires Python >=3.10 and WeeWX >=5.2,<6.
 
-    http://weewx.com/docs/usersguide.htm
+Install `pyserial` into the WeeWX Python environment:
 
-1) Download the driver
+```sh
+python -m pip install pyserial
+```
 
-    wget -O weewx-meteostick.zip https://github.com/matthewwall/weewx-meteostick/archive/master.zip
+Use the `weectl` from your WeeWX Python environment:
 
-2) Install the driver
+```sh
+weectl extension install https://github.com/weewx-packages/weewx-meteostick/releases/download/v0.68.1/weewx-meteostick-0.68.1.zip --config=/path/to/weewx.conf
+weectl station reconfigure --driver=user.meteostick --config=/path/to/weewx.conf
+```
 
-    sudo wee_extension --install weewx-meteostick.zip
+Replace `/path/to/weewx.conf` with your station configuration. Stock WeeWX 5
+accepts this fixed URL or a downloaded copy of the same archive. No catalog
+integration is required. Restart WeeWX yourself after configuration changes.
 
-3) Configure the driver
+## Select transmitters
 
-    sudo wee_config --reconfigure
+```ini
+[Station]
+    station_type = Meteostick
+[Meteostick]
+    driver = user.meteostick
+    port = /dev/ttyUSB0
+    transceiver_frequency = EU
+    iss_channel = 1
+    rain_bucket_type = 1
+```
 
-4) Start weewx
+Give the WeeWX service user access to the serial device. The default serial rate
+is 115200 baud. Set `iss_channel` to the transmitter channel, 1 through 8.
+`rain_bucket_type = 1` means 0.2 mm per tip; `0` means 0.01 inch per tip.
 
-    sudo /etc/init.d/weewx start
+Optional `anemometer_channel`, `leaf_soil_channel`, `temp_hum_1_channel` and
+`temp_hum_2_channel` select additional transmitters. Zero disables an extra
+transmitter; anemometer zero uses ISS wind. `[[sensor_map]]` extends or overrides
+the built-in observation map in [meteostick.py](bin/user/meteostick.py).
 
-## Independent continuation
+The default `rf_sensitivity` is 90, meaning -90 dB. Increasing it can admit noise
+and false readings. `max_tries` and `retry_wait` bound recovery attempts. This
+package needs a physical Meteostick; it does not run `rtl_433` or read cloud data.
 
-This repository continues `matthewwall/weewx-meteostick` with its original history.
-The driver is GPL-3.0-or-later; the installer is GPL-3.0-only. See `license`.
-Version 0.68.1 accepts WeeWX 5.2 byte-based CRC input, tolerates reset noise,
-flushes an incomplete serial command before reset, and resets/reconfigures the
-receiver after an empty read. Retries remain bounded by `max_tries`.
+Stop WeeWX before receiver diagnostics. After selecting this driver, inspect
+its device configurator options without opening hardware:
 
-Install using `weectl extension install` with
-`https://github.com/weewx-packages/weewx-meteostick/archive/refs/tags/v0.68.1.zip`.
-Run `python -m pytest -q tests` for CRC, reset, recovery, and logging tests.
-Physical RF reception after a reset remains to verify on a Meteostick.
+```sh
+weectl device --help --config=/path/to/weewx.conf
+```
+
+The standalone `python -m user.meteostick` entry point fails on modern WeeWX
+logging with an undefined `syslog`; use the device configurator instead.
+
+Copyright 2016-2020 Matthew Wall and Luc Heijst. Thanks to Frank Bandle and
+kobuki for original testing and validation. The driver is GPL-3.0-or-later;
+the installer is GPL-3.0-only. See [license](license) and [NOTICE](NOTICE).
+
+<!-- Documentation updated 2026-10-23 by weewx-packages. -->
