@@ -85,13 +85,17 @@ device configurator shows the Meteostick options:
 weectl device --help --config=/path/to/weewx.conf
 ```
 
+To print the readings without WeeWX, run the driver directly in the Python
+environment of WeeWX. It runs until interrupted. `--help` lists the options:
+
+```sh
+PYTHONPATH=/path/to/station/bin python -m user.meteostick --port=/dev/ttyUSB0 --freq=EU
+```
+
 ## Limitations
 
 - CRC handling and recovery after empty serial reads are covered by offline
   tests only. Reception after a receiver reset still needs checks on a device.
-- The standalone `python -m user.meteostick` entry point fails with an
-  undefined `syslog` under current WeeWX logging. Use the device configurator
-  instead.
 
 ## Development
 

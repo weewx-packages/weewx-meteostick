@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # Modified 2026-10-22 by weewx-packages.
+# Modified 2026-10-23 by weewx-packages: set up WeeWX logging in the
+# standalone entry point instead of syslog.
 # -*- coding: utf-8 -*-
 # Meteostick driver for weewx
 #
@@ -1314,8 +1316,8 @@ if __name__ == '__main__':
 
     usage = """%prog [options] [--help]"""
 
-    syslog.openlog('meteostick', syslog.LOG_PID | syslog.LOG_CONS)
-    syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
+    weewx.debug = 1
+    weeutil.logger.setup('meteostick')
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('--version', dest='version', action='store_true',
                       help='display driver version')

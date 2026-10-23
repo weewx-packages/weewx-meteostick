@@ -1,3 +1,7 @@
+Unreleased
+* fixed NameError for syslog in the standalone entry point under WeeWX 5
+  logging
+
 0.67 01jun2020
 * fix integer division
 
