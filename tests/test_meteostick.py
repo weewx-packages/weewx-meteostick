@@ -2,7 +2,10 @@
 # Distributed under the terms of the GNU Public License (GPLv3)
 import binascii
 import importlib.util
+import os
 from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import Mock
 
 import pytest
@@ -62,3 +65,11 @@ def test_weewx_logging(caplog):
     with caplog.at_level('INFO'):
         m.loginf('serial fixture')
     assert 'serial fixture' in caplog.text
+
+
+def test_standalone_entry_point():
+    env = dict(os.environ, PYTHONPATH=str(Path(__file__).parents[1] / 'bin'))
+    result = subprocess.run([sys.executable, '-m', 'user.meteostick', '--version'],
+                            env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert 'meteostick driver version' in result.stdout
