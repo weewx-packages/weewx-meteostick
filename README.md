@@ -1,54 +1,51 @@
-# Meteostick for WeeWX
+# Meteostick
 
 Receive Davis wireless weather transmissions with a Meteostick connected by
-serial/USB. The driver configures the receiver's raw format and decodes ISS,
-separate anemometer, leaf/soil and up to two extra temperature/humidity stations.
-Frequency plans are `EU`, `US` and `AU`; select the plan for your hardware.
+serial/USB. The driver configures the receiver's raw format and decodes the
+ISS, a separate anemometer, a leaf/soil station and up to two extra
+temperature/humidity stations. It needs a physical Meteostick; it does not run
+`rtl_433` or read cloud data.
 
-This independent continuation preserves
+This is an independent continuation of
 [matthewwall/weewx-meteostick](https://github.com/matthewwall/weewx-meteostick)
-history. Version 0.68.1 fixes byte-based CRC handling and bounded recovery after
-empty serial reads. Physical reception after a reset still needs device checks.
+with its history. See [NOTICE](NOTICE).
 
-## Install
+## Requirements
 
-An existing WeeWX station is required. Replace `/path/to/weewx.conf`
-with its configuration file before running the commands.
+- A Meteostick and a Davis Vantage Vue, Pro or Pro2 station.
+- Access to the serial device for the user running WeeWX.
+- `pyserial` in the Python environment that runs WeeWX.
 
-The catalog release requires Python >=3.10 and WeeWX >=5.2,<6.
-
-Before running the commands, activate the existing virtual environment that
-runs your WeeWX service. Both `python` and `weectl` must come from that
-environment. For an OS-packaged WeeWX installation, use compatible distribution
-packages instead, or migrate WeeWX and its service to a virtual environment
-first. Installing into an unrelated virtual environment will not supply the
-running service with dependencies.
-
-Install `pyserial` into the WeeWX Python environment:
+Activate the virtual environment of your WeeWX service, then install:
 
 ```sh
-python -m pip install 'pyserial==3.5'
+python -m pip install pyserial
 ```
 
-The distribution is named `pyserial`; it provides the `serial` import.
-Do not install the different package named `serial`.
+The distribution is named `pyserial` and provides the `serial` import. Do not
+install the different package named `serial`. Installing into an unrelated
+virtual environment does not supply the running service. For an OS-packaged
+WeeWX installation, use the distribution package instead, or move WeeWX and
+its service to a virtual environment first.
 
-Use the `weectl` from your WeeWX Python environment:
+## Installation
+
+Install `meteostick` from the [WeeWX packages catalog](https://github.com/weewx-packages/catalog/blob/main/packages/meteostick.md).
+The catalog page lists the current release, its WeeWX and Python
+requirements, and the install, update and removal commands.
+
+Then select the driver and restart WeeWX:
 
 ```sh
-weectl extension install https://github.com/weewx-packages/weewx-meteostick/releases/download/v0.68.1/weewx-meteostick-0.68.1.zip --config=/path/to/weewx.conf
 weectl station reconfigure --driver=user.meteostick --config=/path/to/weewx.conf
 ```
 
-Stock WeeWX 5 accepts this fixed URL or a downloaded copy of the same archive.
-No catalog integration is required. Restart WeeWX yourself after configuration
-changes.
-
-## Select transmitters
+## Configuration
 
 ```ini
 [Station]
     station_type = Meteostick
+
 [Meteostick]
     driver = user.meteostick
     port = /dev/ttyUSB0
@@ -57,31 +54,55 @@ changes.
     rain_bucket_type = 1
 ```
 
-Give the WeeWX service user access to the serial device. The default serial rate
-is 115200 baud. Set `iss_channel` to the transmitter channel, 1 through 8.
-`rain_bucket_type = 1` means 0.2 mm per tip; `0` means 0.01 inch per tip.
+Options in `[Meteostick]`:
 
-Optional `anemometer_channel`, `leaf_soil_channel`, `temp_hum_1_channel` and
-`temp_hum_2_channel` select additional transmitters. Zero disables an extra
-transmitter; anemometer zero uses ISS wind. `[[sensor_map]]` extends or overrides
-the built-in observation map in [meteostick.py](bin/user/meteostick.py).
+| Option | Default | Meaning |
+|---|---|---|
+| `driver` | | Must be `user.meteostick`. |
+| `port` | `/dev/ttyUSB0` | Serial device of the Meteostick. |
+| `baudrate` | `115200` | Serial rate. |
+| `transceiver_frequency` | `EU` | Frequency plan: `EU`, `US` or `AU`. Select the plan for your hardware. |
+| `iss_channel` | `1` | ISS transmitter channel, 1 through 8. |
+| `anemometer_channel` | `0` | Separate wind transmitter, 1 through 8. 0 uses ISS wind. |
+| `leaf_soil_channel` | `0` | Leaf/soil transmitter, 1 through 8. 0 disables it. |
+| `temp_hum_1_channel`, `temp_hum_2_channel` | `0` | Extra temperature/humidity transmitters. 0 disables them. |
+| `rain_bucket_type` | `1` | 1 for 0.2 mm, 0 for 0.01 inch per tip. |
+| `rf_sensitivity` | `90` | RF sensitivity in -dB, up to 125. Higher values can admit noise and false readings. |
+| `max_tries` | `10` | Read attempts before WeeWX gets a retries-exceeded error. An empty read resets the receiver. |
+| `retry_wait` | `10` | Seconds between read attempts. |
+| `debug_parse`, `debug_serial`, `debug_rain`, `debug_rf_sensitivity` | `0` | Debug message levels. |
+| `sensor_map` | built-in mapping | Maps WeeWX fields to decoded observations. Entries extend or override the built-in map in [meteostick.py](bin/user/meteostick.py). |
 
-The default `rf_sensitivity` is 90, meaning -90 dB. Increasing it can admit noise
-and false readings. `max_tries` and `retry_wait` bound recovery attempts. This
-package needs a physical Meteostick; it does not run `rtl_433` or read cloud data.
+The table lists the values used when an option is absent. The stanza that
+`weectl station reconfigure` adds sets `debug_rf_sensitivity = 1`.
 
-Stop WeeWX before receiver diagnostics. After selecting this driver, inspect
-its device configurator options without opening hardware:
+### Configure the receiver
+
+Stop WeeWX before receiver diagnostics. After selecting this driver, the
+device configurator shows the Meteostick options:
 
 ```sh
 weectl device --help --config=/path/to/weewx.conf
 ```
 
-The standalone `python -m user.meteostick` entry point fails on modern WeeWX
-logging with an undefined `syslog`; use the device configurator instead.
+## Limitations
+
+- CRC handling and recovery after empty serial reads are covered by offline
+  tests only. Reception after a receiver reset still needs checks on a device.
+- The standalone `python -m user.meteostick` entry point fails with an
+  undefined `syslog` under current WeeWX logging. Use the device configurator
+  instead.
+
+## Development
+
+In a WeeWX environment with pytest and pyserial:
+
+```sh
+python -m pytest -q tests
+```
+
+## License
 
 Copyright 2016-2020 Matthew Wall and Luc Heijst. Thanks to Frank Bandle and
 kobuki for original testing and validation. The driver is GPL-3.0-or-later;
 the installer is GPL-3.0-only. See [license](license) and [NOTICE](NOTICE).
-
-<!-- Documentation updated 2026-10-23 by weewx-packages. -->
