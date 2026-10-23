@@ -87,7 +87,7 @@ except ImportError:
         logmsg(syslog.LOG_ERR, msg)
 
 DRIVER_NAME = 'Meteostick'
-DRIVER_VERSION = '0.68.1'
+DRIVER_VERSION = '0.68.2'
 
 DEBUG_SERIAL = 0
 DEBUG_RAIN = 0
